@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { useSupabaseClient } from '@supabase/auth-helpers-react'
 import { useSession } from '@supabase/auth-helpers-react'
 import { CustodyManagement } from './components/Custody/CustodyManagement'
+import { CustodyRequests } from './components/Custody/CustodyRequests'
 
 const PrivateRoute: React.FC<{ 
   children: React.ReactElement,
@@ -58,13 +59,13 @@ const PrivateRoute: React.FC<{
 
 const Layout: React.FC<{ children: React.ReactElement }> = ({ children }) => {
   return (
-    <Box sx={{ display: 'flex' }}>
+    <div className="flex">
       <CssBaseline />
       <Sidebar />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <div className="flex-grow p-3">
         {children}
-      </Box>
-    </Box>
+      </div>
+    </div>
   )
 }
 
@@ -145,6 +146,13 @@ export const App: React.FC = () => {
             <PrivateRoute>
               <Layout>
                 <CustodyManagement />
+              </Layout>
+            </PrivateRoute>
+          } />
+          <Route path="/custody-requests" element={
+            <PrivateRoute requireAdmin={true}>
+              <Layout>
+                <CustodyRequests />
               </Layout>
             </PrivateRoute>
           } />

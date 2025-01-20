@@ -39,7 +39,10 @@ export const ProductManagement = () => {
       rack: '',
       shelf: ''
     },
-    barcode: ''
+    barcode: '',
+    unit: '',
+    price: 0,
+    notes: ''
   })
   const [error, setError] = useState('')
   const [showBarcode, setShowBarcode] = useState<string | null>(null)
@@ -369,7 +372,7 @@ export const ProductManagement = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="sm:flex sm:items-center justify-between py-6">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">إدارة المنتجات</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">إدارة الأصناف</h1>
         </div>
         <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-3">
           <button
@@ -380,7 +383,7 @@ export const ProductManagement = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center rounded-md border border-transparent bg-primary-600 px-5 py-2.5 text-base font-medium text-white shadow-sm hover:bg-primary-700 transition-colors"
           >
             <PlusIcon className="h-5 w-5 ml-2" />
-            إضافة منتج
+            إضافة صنف
           </button>
 
           <button
@@ -421,20 +424,26 @@ export const ProductManagement = () => {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900 w-1/4">
-                      المنتج
-                    </th>
-                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900 w-1/5">
+                    <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900">
                       الباركود
                     </th>
-                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900 w-1/12">
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
+                      الصنف
+                    </th>
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
+                      الوحدة
+                    </th>
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
                       الكمية
                     </th>
-                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900 w-1/5">
-                      الموقع
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
+                      المبلغ
                     </th>
-                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900 w-1/6">
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
                       آخر تحديث
+                    </th>
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
+                      الملاحظات
                     </th>
                     <th scope="col" className="relative py-4 pl-3 pr-4 w-24">
                       <span className="sr-only">إجراءات</span>
@@ -445,14 +454,6 @@ export const ProductManagement = () => {
                   {products.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="py-4 pr-4 pl-3">
-                        <div className="text-base font-semibold text-gray-900 mb-1">
-                          {product.name}
-                        </div>
-                        <div className="text-sm text-gray-500 font-medium">
-                          {product.sku}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
                             {product.barcode}
@@ -467,31 +468,22 @@ export const ProductManagement = () => {
                         </div>
                       </td>
                       <td className="px-3 py-4">
+                        <div className="text-base font-semibold text-gray-900">{product.name}</div>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="text-sm text-gray-900">{product.unit}</div>
+                      </td>
+                      <td className="px-3 py-4">
                         <span className={`inline-flex items-center justify-center min-w-[3rem] px-2.5 py-1 rounded-full text-sm font-medium ${
-                          product.quantity <= product.minimum_quantity 
-                            ? 'bg-red-100 text-red-800' 
+                          product.quantity <= product.minimum_quantity
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-green-100 text-green-800'
                         }`}>
                           {product.quantity}
                         </span>
                       </td>
                       <td className="px-3 py-4">
-                        <div className="text-sm text-gray-900">
-                          <span className="inline-flex items-center gap-1">
-                            <span className="font-medium">منطقة:</span>
-                            {product.location.zone}
-                          </span>
-                          <span className="mx-1">-</span>
-                          <span className="inline-flex items-center gap-1">
-                            <span className="font-medium">رف:</span>
-                            {product.location.rack}
-                          </span>
-                          <span className="mx-1">-</span>
-                          <span className="inline-flex items-center gap-1">
-                            <span className="font-medium">طبقة:</span>
-                            {product.location.shelf}
-                          </span>
-                        </div>
+                        <div className="text-sm text-gray-900">{product.price}</div>
                       </td>
                       <td className="px-3 py-4">
                         <div className="text-sm text-gray-900">
@@ -503,9 +495,10 @@ export const ProductManagement = () => {
                             minute: '2-digit'
                           })}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {product.updater?.name || 'غير معروف'}
-                        </div>
+                        <div className="text-sm text-gray-500">{product.updater?.name || 'غير معروف'}</div>
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="text-sm text-gray-900">{product.notes || '-'}</div>
                       </td>
                       <td className="relative py-4 pl-3 pr-4">
                         <div className="flex justify-end gap-2">
@@ -630,13 +623,13 @@ export const ProductManagement = () => {
 
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle className="text-xl font-semibold border-b pb-4">
-          {editingProduct ? 'تعديل منتج' : 'إضافة منتج جديد'}
+          {editingProduct ? 'تعديل صنف' : 'إضافة صنف جديد'}
         </DialogTitle>
         <DialogContent className="mt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                اسم المنتج
+                اسم الصنف
               </label>
               <input
                 type="text"
@@ -649,14 +642,14 @@ export const ProductManagement = () => {
             </div>
 
             <div>
-              <label htmlFor="sku" className="block text-sm font-medium text-gray-700">
-                SKU
+              <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
+                الوحدة
               </label>
               <input
                 type="text"
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                id="unit"
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 required
               />
@@ -677,6 +670,21 @@ export const ProductManagement = () => {
             </div>
 
             <div>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+                المبلغ
+              </label>
+              <input
+                type="number"
+                id="price"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                required
+              />
+            </div>
+
+            <div>
               <label htmlFor="minimum_quantity" className="block text-sm font-medium text-gray-700">
                 الحد الأدنى للكمية
               </label>
@@ -691,69 +699,16 @@ export const ProductManagement = () => {
             </div>
 
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                الفئة
+              <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                ملاحظات
               </label>
-              <input
-                type="text"
-                id="category"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              <textarea
+                id="notes"
+                rows={3}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="zone" className="block text-sm font-medium text-gray-700">
-                  المنطقة
-                </label>
-                <input
-                  type="text"
-                  id="zone"
-                  value={formData.location.zone}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    location: { ...formData.location, zone: e.target.value }
-                  })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="rack" className="block text-sm font-medium text-gray-700">
-                  الرف
-                </label>
-                <input
-                  type="text"
-                  id="rack"
-                  value={formData.location.rack}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    location: { ...formData.location, rack: e.target.value }
-                  })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="shelf" className="block text-sm font-medium text-gray-700">
-                  الطبقة
-                </label>
-                <input
-                  type="text"
-                  id="shelf"
-                  value={formData.location.shelf}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    location: { ...formData.location, shelf: e.target.value }
-                  })}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  required
-                />
-              </div>
             </div>
 
             <div>
@@ -804,13 +759,13 @@ export const ProductManagement = () => {
         fullWidth
       >
         <DialogTitle className="text-xl font-semibold border-b pb-4">
-          تفاصيل المنتج
+          تفاصيل الصنف
         </DialogTitle>
         <DialogContent className="mt-4">
           {scannedProduct && (
             <div className="space-y-4">
               <div>
-                <label className="font-medium">اسم المنتج:</label>
+                <label className="font-medium">اسم الصنف:</label>
                 <p className="mt-1">{scannedProduct.name}</p>
               </div>
               <div>

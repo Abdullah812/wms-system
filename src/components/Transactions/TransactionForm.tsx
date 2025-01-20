@@ -28,10 +28,19 @@ interface Transaction {
     name: string
     sku: string
     barcode: string
+    unit: string
   }
   creator: {
     name: string
   }
+  receiver?: string
+  sender?: string
+  amount?: number
+}
+
+interface User {
+  id: string
+  name: string
 }
 
 export const TransactionForm = () => {
@@ -43,16 +52,19 @@ export const TransactionForm = () => {
   const { session } = useAuth()
   const [formData, setFormData] = useState({
     product_id: '',
-    type: 'in',
+    type: 'in' as 'in' | 'out',
     quantity: 1,
-    from_location: '',
-    to_location: '',
+    amount: 0,
+    receiver: '',
+    sender: '',
     notes: ''
   })
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
+  const [users, setUsers] = useState<User[]>([])
 
   useEffect(() => {
     fetchTransactions()
+    fetchUsers()
   }, [])
 
   const fetchTransactions = async () => {
@@ -71,6 +83,21 @@ export const TransactionForm = () => {
     } catch (error) {
       console.error('Error fetching transactions:', error)
       setError('حدث خطأ في جلب المعاملات')
+    }
+  }
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, name')
+        .eq('active', true)
+        .order('name')
+      
+      if (error) throw error
+      setUsers(data || [])
+    } catch (error) {
+      console.error('Error fetching users:', error)
     }
   }
 
@@ -133,8 +160,9 @@ export const TransactionForm = () => {
         product_id: '',
         type: 'in',
         quantity: 1,
-        from_location: '',
-        to_location: '',
+        amount: 0,
+        receiver: '',
+        sender: '',
         notes: ''
       })
       setSelectedProduct(null)
@@ -158,8 +186,9 @@ export const TransactionForm = () => {
                 product_id: '',
                 type: 'in',
                 quantity: 1,
-                from_location: '',
-                to_location: '',
+                amount: 0,
+                receiver: '',
+                sender: '',
                 notes: ''
               })
               setOpenDialog(true)
@@ -207,67 +236,62 @@ export const TransactionForm = () => {
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900 sm:pr-6">
-                      المنتج
+                    <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900">
+                      الباركود
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      نوع الحركة
+                      الصنف
+                    </th>
+                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
+                      الوحدة
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
                       الكمية
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      من موقع
+                      المبلغ
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      إلى موقع
+                      المستلم
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      الملاحظات
+                      المسلم
                     </th>
                     <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      التاريخ
-                    </th>
-                    <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">
-                      بواسطة
+                      الحالة
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {transactions.map((transaction) => (
                     <tr key={transaction.id}>
-                      <td className="whitespace-nowrap py-4 pr-4 pl-3 text-base font-medium text-gray-900 sm:pr-6">
-                        {transaction.product.name}
-                        <div className="text-sm font-normal text-gray-500">
-                          {transaction.product.sku}
-                        </div>
+                      <td className="whitespace-nowrap py-4 pr-4 pl-3 text-base text-gray-900">
+                        {transaction.product.barcode}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-base">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          transaction.type === 'in' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {transaction.type === 'in' ? 'وارد' : 'صادر'}
-                        </span>
+                      <td className="whitespace-nowrap px-3 py-4 text-base text-gray-900">
+                        {transaction.product.name}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
+                        {transaction.product.unit}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
                         {transaction.quantity}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                        {transaction.from_location || '-'}
+                        {transaction.amount || '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                        {transaction.to_location || '-'}
+                        {transaction.receiver || '-'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                        {transaction.notes}
+                        {transaction.sender || '-'}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                        {new Date(transaction.created_at).toLocaleString('ar-SA')}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-base text-gray-500">
-                        {transaction.creator?.name}
+                      <td className="whitespace-nowrap px-3 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          transaction.type === 'in' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {transaction.type === 'in' ? 'وارد' : 'صادر'}
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -347,11 +371,11 @@ export const TransactionForm = () => {
             {!selectedProduct && (
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  بحث عن منتج
+                  بحث عن صنف
                 </label>
                 <input
                   type="text"
-                  placeholder="ادخل اسم المنتج أو الباركود"
+                  placeholder="ادخل اسم الصنف أو الباركود"
                   onChange={async (e) => {
                     try {
                       const { data, error } = await supabase
@@ -359,7 +383,6 @@ export const TransactionForm = () => {
                         .select('*')
                         .or(`name.ilike.%${e.target.value}%,barcode.eq.${e.target.value},sku.ilike.%${e.target.value}%`)
                         .single()
-
                       if (data) {
                         setSelectedProduct(data)
                         setFormData(prev => ({ ...prev, product_id: data.id }))
@@ -372,39 +395,18 @@ export const TransactionForm = () => {
                 />
               </div>
             )}
-
             {selectedProduct && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    المنتج
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">الصنف</label>
                   <p className="mt-1">
                     {selectedProduct.name}
-                    <span className="text-sm text-gray-500 block">
-                      {selectedProduct.sku}
-                    </span>
+                    <span className="text-sm text-gray-500 block">{selectedProduct.sku}</span>
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    نوع الحركة
-                  </label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as 'in' | 'out' })}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  >
-                    <option value="in">وارد</option>
-                    <option value="out">صادر</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    الكمية
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">الكمية</label>
                   <input
                     type="number"
                     min="1"
@@ -416,33 +418,62 @@ export const TransactionForm = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    من موقع
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">المبلغ</label>
                   <input
-                    type="text"
-                    value={formData.from_location}
-                    onChange={(e) => setFormData({ ...formData, from_location: e.target.value })}
+                    type="number"
+                    step="0.01"
+                    value={formData.amount || ''}
+                    onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    إلى موقع
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.to_location}
-                    onChange={(e) => setFormData({ ...formData, to_location: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700">المستلم</label>
+                  <select
+                    value={formData.receiver || ''}
+                    onChange={(e) => setFormData({ ...formData, receiver: e.target.value })}
                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                  />
+                  >
+                    <option value="">اختر المستلم</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    ملاحظات
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700">المسلم</label>
+                  <select
+                    value={formData.sender || ''}
+                    onChange={(e) => setFormData({ ...formData, sender: e.target.value })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  >
+                    <option value="">اختر المسلم</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">الحالة</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as 'in' | 'out' })}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  >
+                    <option value="in">وارد</option>
+                    <option value="out">صادر</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">ملاحظات</label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

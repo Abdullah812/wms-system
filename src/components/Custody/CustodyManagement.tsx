@@ -21,24 +21,29 @@ import {
   Typography
 } from '@mui/material'
 import { useSupabaseClient } from '@supabase/auth-helpers-react'
-import { PlusIcon, PencilIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, ArrowUturnLeftIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Product } from '../../types'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface CustodyItem {
   id: string
   item_name: string
   quantity: number
   assigned_to: string
-  status: 'active' | 'returned' | 'damaged'
+  status: 'pending' | 'active' | 'returned' | 'damaged' | 'rejected'
   notes: string
   created_at: string
-  assignee?: {
-    name: string
-  }
+  created_by: string
+  approved_at?: string
+  approved_by?: string
+  assignee?: { name: string }
+  approver?: { name: string }
 }
 
 export const CustodyManagement: React.FC = () => {
   const supabase = useSupabaseClient()
+  const { session } = useAuth()
+  const isAdmin = session?.user?.app_metadata?.role === 'admin'
   const [items, setItems] = useState<CustodyItem[]>([])
   const [open, setOpen] = useState(false)
   const [users, setUsers] = useState<any[]>([])
@@ -52,37 +57,46 @@ export const CustodyManagement: React.FC = () => {
 
   useEffect(() => {
     fetchCustodyItems()
-    fetchUsers()
     fetchProducts()
   }, [])
 
   const fetchCustodyItems = async () => {
-    const { data, error } = await supabase
+    // أولاً نجلب العهد
+    const { data: custodyData, error: custodyError } = await supabase
       .from('custody')
-      .select(`
-        *,
-        assignee:assigned_to(name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching custody items:', error)
+    if (custodyError) {
+      console.error('Error fetching custody items:', custodyError)
       return
     }
-    setItems(data || [])
-  }
 
-  const fetchUsers = async () => {
-    const { data, error } = await supabase
+    // ثم نجلب معلومات المستخدمين
+    const userIds = custodyData.reduce((acc: string[], item) => {
+      if (item.assigned_to) acc.push(item.assigned_to)
+      if (item.approved_by) acc.push(item.approved_by)
+      return acc
+    }, [])
+
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id, name')
-      .order('name')
+      .in('id', [...new Set(userIds)])
 
-    if (error) {
-      console.error('Error fetching users:', error)
+    if (userError) {
+      console.error('Error fetching users:', userError)
       return
     }
-    setUsers(data || [])
+
+    // ندمج البيانات
+    const items = custodyData.map(item => ({
+      ...item,
+      assignee: userData.find(user => user.id === item.assigned_to),
+      approver: userData.find(user => user.id === item.approved_by)
+    }))
+
+    setItems(items)
   }
 
   const fetchProducts = async () => {
@@ -109,27 +123,17 @@ export const CustodyManagement: React.FC = () => {
     const { error: custodyError } = await supabase
       .from('custody')
       .insert([{
-        product_id: formData.product_id,
+        item_name: selectedProduct.name,
         quantity: formData.quantity,
         assigned_to: formData.assigned_to,
         notes: formData.notes,
-        status: 'active'
+        status: 'pending',
+        created_by: session?.user?.id,
+        created_at: new Date().toISOString()
       }])
 
     if (custodyError) {
       console.error('Error adding custody:', custodyError)
-      return
-    }
-
-    const { error: updateError } = await supabase
-      .from('products')
-      .update({ 
-        quantity: selectedProduct.quantity - formData.quantity 
-      })
-      .eq('id', formData.product_id)
-
-    if (updateError) {
-      console.error('Error updating product quantity:', updateError)
       return
     }
 
@@ -145,17 +149,103 @@ export const CustodyManagement: React.FC = () => {
   }
 
   const handleStatusChange = async (id: string, status: string) => {
-    const { error } = await supabase
+    // أولاً نجلب معلومات العهدة
+    const { data: custodyItem } = await supabase
+      .from('custody')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!custodyItem) return
+
+    // نجلب معلومات المنتج باستخدام اسم المنتج
+    const { data: product } = await supabase
+      .from('products')
+      .select('id, quantity')
+      .eq('name', custodyItem.item_name)
+      .single()
+
+    if (!product) return
+
+    // نقوم بتحديث حالة العهدة
+    const { error: custodyError } = await supabase
       .from('custody')
       .update({ status })
       .eq('id', id)
 
-    if (error) {
-      console.error('Error updating status:', error)
+    if (custodyError) {
+      console.error('Error updating status:', custodyError)
       return
     }
 
+    // إذا تم الإرجاع، نقوم بتحديث كمية المنتج
+    if (status === 'returned') {
+      const { error: productError } = await supabase
+        .from('products')
+        .update({ 
+          quantity: product.quantity + custodyItem.quantity 
+        })
+        .eq('id', product.id)
+
+      if (productError) {
+        console.error('Error updating product quantity:', productError)
+        return
+      }
+    }
+
     fetchCustodyItems()
+    fetchProducts()
+  }
+
+  const handleApproval = async (id: string, newStatus: 'active' | 'rejected') => {
+    const { data: custodyItem } = await supabase
+      .from('custody')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!custodyItem) return
+
+    // تحديث حالة العهدة
+    const { error: custodyError } = await supabase
+      .from('custody')
+      .update({ 
+        status: newStatus,
+        approved_by: session?.user?.id,
+        approved_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (custodyError) {
+      console.error('Error updating custody status:', custodyError)
+      return
+    }
+
+    // إذا تمت الموافقة، نقوم بتحديث كمية المنتج
+    if (newStatus === 'active') {
+      const { data: product } = await supabase
+        .from('products')
+        .select('id, quantity')
+        .eq('name', custodyItem.item_name)
+        .single()
+
+      if (!product) return
+
+      const { error: productError } = await supabase
+        .from('products')
+        .update({ 
+          quantity: product.quantity - custodyItem.quantity 
+        })
+        .eq('id', product.id)
+
+      if (productError) {
+        console.error('Error updating product quantity:', productError)
+        return
+      }
+    }
+
+    fetchCustodyItems()
+    fetchProducts()
   }
 
   return (
@@ -188,11 +278,12 @@ export const CustodyManagement: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-300">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900">المنتج</th>
+                <th scope="col" className="py-4 pr-4 pl-3 text-right text-base font-semibold text-gray-900">الصنف</th>
                 <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">المستلم</th>
                 <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">تاريخ التسليم</th>
                 <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">الحالة</th>
-                <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">ملاحظات</th>
+                <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">الموافقة</th>
+                <th scope="col" className="px-3 py-4 text-right text-base font-semibold text-gray-900">الملاحظات</th>
                 <th scope="col" className="relative py-4 pl-3 pr-4 w-24">
                   <span className="sr-only">إجراءات</span>
                 </th>
@@ -202,11 +293,7 @@ export const CustodyManagement: React.FC = () => {
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
                   <td className="py-4 pr-4 pl-3">
-                    <div className="flex items-center">
-                      <div className="mr-4">
-                        <div className="text-base font-medium text-gray-900">{item.item_name}</div>
-                      </div>
-                    </div>
+                    <div className="text-base font-medium text-gray-900">{item.item_name}</div>
                   </td>
                   <td className="px-3 py-4">
                     <div className="flex items-center">
@@ -225,26 +312,66 @@ export const CustodyManagement: React.FC = () => {
                   </td>
                   <td className="px-3 py-4">
                     <span className={`inline-flex rounded-full px-2 text-xs font-semibold ${
-                      item.status === 'active' 
-                        ? 'bg-green-100 text-green-800'
-                        : item.status === 'returned'
-                        ? 'bg-gray-100 text-gray-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                      item.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                      item.status === 'returned' ? 'bg-gray-100 text-gray-800' :
+                      'bg-yellow-100 text-yellow-800'
                     }`}>
-                      {item.status === 'active' ? 'نشطة' : item.status === 'returned' ? 'مرجعة' : 'معلقة'}
+                      {item.status === 'active' ? 'نشط' :
+                       item.status === 'returned' ? 'مرجع' : 'معطل'}
                     </span>
+                  </td>
+                  <td className="px-3 py-4 text-sm text-gray-500">
+                    {item.status === 'pending' ? (
+                      <span className="text-yellow-600">في انتظار الموافقة</span>
+                    ) : item.status === 'rejected' ? (
+                      <span className="text-red-600">تم الرفض</span>
+                    ) : item.status === 'active' ? (
+                      <div>
+                        <span className="text-green-600">تمت الموافقة</span>
+                        {item.approved_by && item.approved_at && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            بواسطة: {item.approver?.name}
+                            <br />
+                            {new Date(item.approved_at).toLocaleDateString('ar-SA')}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-500">
                     {item.notes || '-'}
                   </td>
                   <td className="py-4 pl-3 pr-4 text-right text-sm">
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleStatusChange(item.id, 'returned')}
-                        className="p-1.5 rounded-full text-green-600 hover:bg-green-50"
-                      >
-                        <ArrowUturnLeftIcon className="h-5 w-5" />
-                      </button>
+                      {isAdmin && item.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleApproval(item.id, 'active')}
+                            className="p-1.5 rounded-full text-green-600 hover:bg-green-50"
+                            title="موافقة"
+                          >
+                            <CheckIcon className="h-5 w-5" />
+                          </button>
+                          <button
+                            onClick={() => handleApproval(item.id, 'rejected')}
+                            className="p-1.5 rounded-full text-red-600 hover:bg-red-50"
+                            title="رفض"
+                          >
+                            <XMarkIcon className="h-5 w-5" />
+                          </button>
+                        </>
+                      )}
+                      {item.status === 'active' && (
+                        <button
+                          onClick={() => handleStatusChange(item.id, 'returned')}
+                          className="p-1.5 rounded-full text-green-600 hover:bg-green-50"
+                          title="إرجاع"
+                        >
+                          <ArrowUturnLeftIcon className="h-5 w-5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -262,12 +389,14 @@ export const CustodyManagement: React.FC = () => {
                 <div className="text-lg font-semibold text-gray-900">{item.item_name}</div>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => handleStatusChange(item.id, 'returned')}
-                  className="p-1.5 rounded-full text-green-600 hover:bg-green-50"
-                >
-                  <ArrowUturnLeftIcon className="h-5 w-5" />
-                </button>
+                {item.status === 'active' && (
+                  <button
+                    onClick={() => handleStatusChange(item.id, 'returned')}
+                    className="p-1.5 rounded-full text-green-600 hover:bg-green-50"
+                  >
+                    <ArrowUturnLeftIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -293,13 +422,12 @@ export const CustodyManagement: React.FC = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-500">الحالة</span>
                 <span className={`inline-flex rounded-full px-2 text-xs font-semibold ${
-                  item.status === 'active' 
-                    ? 'bg-green-100 text-green-800'
-                    : item.status === 'returned'
-                    ? 'bg-gray-100 text-gray-800'
-                    : 'bg-yellow-100 text-yellow-800'
+                  item.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                  item.status === 'returned' ? 'bg-gray-100 text-gray-800' :
+                  'bg-yellow-100 text-yellow-800'
                 }`}>
-                  {item.status === 'active' ? 'نشطة' : item.status === 'returned' ? 'مرجعة' : 'معلقة'}
+                  {item.status === 'active' ? 'نشط' :
+                   item.status === 'returned' ? 'مرجع' : 'معطل'}
                 </span>
               </div>
 
@@ -313,8 +441,14 @@ export const CustodyManagement: React.FC = () => {
         ))}
       </div>
 
-      <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>إضافة عهدة جديدة</DialogTitle>
+      <Dialog 
+        open={open} 
+        onClose={() => setOpen(false)}
+        aria-labelledby="custody-dialog-title"
+        disableEnforceFocus
+        keepMounted={false}
+      >
+        <DialogTitle id="custody-dialog-title">إضافة عهدة جديدة</DialogTitle>
         <DialogContent>
           <FormControl fullWidth margin="dense">
             <InputLabel>المنتج</InputLabel>

@@ -8,7 +8,8 @@ import {
   ChartBarIcon,
   UsersIcon,
   ArrowRightOnRectangleIcon,
-  KeyIcon
+  KeyIcon,
+  ClipboardDocumentCheckIcon
 } from '@heroicons/react/24/outline'
 import { Drawer, List, ListItem } from '@mui/material'
 import { useSupabaseClient } from '@supabase/auth-helpers-react'
@@ -55,6 +56,10 @@ export const Sidebar: React.FC = () => {
   const fullNavigation = userRole === 'admin' 
     ? [...navigation, { name: 'المستخدمين', href: '/users', icon: UsersIcon }]
     : navigation
+
+  const isAdmin = userRole === 'admin'
+  const pathname = location.pathname
+  const pendingRequestsCount = 0 // Assuming pendingRequestsCount is not available in the current implementation
 
   return (
     <Drawer 
@@ -111,6 +116,26 @@ export const Sidebar: React.FC = () => {
                     </li>
                   )
                 })}
+                {isAdmin && (
+                  <li>
+                    <Link
+                      to="/custody-requests"
+                      className={`${
+                        pathname === '/custody-requests'
+                          ? 'bg-primary-800 text-white'
+                          : 'text-primary-100 hover:bg-primary-800 hover:text-white'
+                      } group flex items-center px-2 py-2 text-sm font-medium rounded-md`}
+                    >
+                      <ClipboardDocumentCheckIcon className="ml-3 h-6 w-6" />
+                      طلبات العهد
+                      {pendingRequestsCount > 0 && (
+                        <span className="mr-auto inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
+                          {pendingRequestsCount}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                )}
               </ul>
             </li>
             <li className="mt-auto border-t border-gray-200 pt-2 sm:pt-3">

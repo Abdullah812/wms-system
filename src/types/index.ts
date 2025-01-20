@@ -3,8 +3,11 @@ export interface Product {
   name: string
   sku: string
   barcode: string
+  unit: string
+  price: number
   quantity: number
   minimum_quantity: number
+  notes?: string
   category: string | null
   location: {
     zone: string

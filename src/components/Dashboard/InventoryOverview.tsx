@@ -14,12 +14,12 @@ const StatCard: React.FC<{
 }> = ({ title, value, icon: Icon, color }) => (
   <Card sx={{ height: '100%' }}>
     <CardContent>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <Icon style={{ width: 24, height: 24, color }} />
-        <Typography variant="h6" sx={{ mr: 1, color }}>
+      <div className="flex items-center mb-2">
+        <Icon className="w-6 h-6" style={{ color }} />
+        <h2 className="text-lg font-semibold mr-1" style={{ color }}>
           {title}
-        </Typography>
-      </Box>
+        </h2>
+      </div>
       <Typography variant="h4" component="div">
         {value}
       </Typography>
