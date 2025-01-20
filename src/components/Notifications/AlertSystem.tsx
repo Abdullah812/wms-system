@@ -60,10 +60,10 @@ export const AlertSystem: React.FC = () => {
         </Alert>
       </Snackbar>
 
-      <Box sx={{ mt: 2 }}>
+      <Box component="div" sx={{ marginTop: 2 }}>
         <Typography variant="h6">
           تنبيهات المخزون
-          <Badge badgeContent={lowStockItems.length} color="error" sx={{ ml: 2 }} />
+          <Badge badgeContent={lowStockItems?.length || 0} color="error" sx={{ ml: 2 }} />
         </Typography>
         <List>
           {lowStockItems.map((item) => (
