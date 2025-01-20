@@ -58,6 +58,7 @@ export const CustodyManagement: React.FC = () => {
   useEffect(() => {
     fetchCustodyItems()
     fetchProducts()
+    fetchUsers()
   }, [])
 
   const fetchCustodyItems = async () => {
@@ -111,6 +112,20 @@ export const CustodyManagement: React.FC = () => {
       return
     }
     setProducts(data || [])
+  }
+
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name')
+      .eq('active', true)
+      .order('name')
+
+    if (error) {
+      console.error('Error fetching users:', error)
+      return
+    }
+    setUsers(data || [])
   }
 
   const handleSubmit = async () => {
